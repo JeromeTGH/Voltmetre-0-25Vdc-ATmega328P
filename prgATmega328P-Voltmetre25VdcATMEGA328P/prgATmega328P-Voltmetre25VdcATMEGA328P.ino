@@ -43,14 +43,21 @@
 
 // Autres paramètres de ce programme
 #define nbreDeLecturesAfaireSurA0       100
-#define valeurResistanceR3DansMontage   7500      // La résistance R3 de notre montage fait 7,5 kohms
-#define valeurResistanceR4DansMontage   30000     // La résistance R4 de notre montage fait 30 kohms
+#define valeurResistanceR3DansMontage   30000.0     // La résistance R3 de notre montage fait 30 kohms
+#define valeurResistanceR4DansMontage   7500.0      // La résistance R4 de notre montage fait 7,5 kohms
 
 
 // ========================
 // Initialisation programme
 // ========================
 void setup() {
+  
+  // Initialisation de la liaison série (PC <-> ATmega328P, au travers du FTDI), pour le débuggage, si besoin
+  Serial.begin(9600);
+  Serial.println(F("================="));
+  Serial.println(F("Voltmètre 0-25Vdc"));
+  Serial.println(F("================="));
+  Serial.println("");
 
   // Définition des sorties de l'ATmega328P
   pinMode(sortieD3_ATmega328P_vers_brocheLIGHT_ecranNokia, OUTPUT);
@@ -113,9 +120,9 @@ void loop() {
   // Effectue plusieurs lectures de l'entrée A0, puis en fait la moyenne (pour avoir une valeur qui varie lentement, notamment à l'affichage)
   // ****************************************************************************************************************************************
   // Nota : A0 retourne une valeur entre 0 et 1023, puisque l'ADC de l'ATmega328P sur ces entrées analogiques fait 10 bits
-  int sommeDesValeursLues = 0;
+  long sommeDesValeursLues = 0;
   for(int i=0; i<nbreDeLecturesAfaireSurA0; i++) {
-    sommeDesValeursLues = sommeDesValeursLues + analogRead(entreeA0_ATmega328P_lecture_tension);
+    sommeDesValeursLues = sommeDesValeursLues + (long)analogRead(entreeA0_ATmega328P_lecture_tension);
   }
   int moyenneValeurA0 = sommeDesValeursLues / nbreDeLecturesAfaireSurA0;
 
@@ -123,93 +130,34 @@ void loop() {
   // *******************************************************************************************************************************
   // Calcul la tension mesurée, en fonction de la valeur moyenne lue sur A0, et du pont diviseur résistif présent dans notre montage
   // *******************************************************************************************************************************
-  float tensionMoyenneSurA0 = (float)moyenneValeurA0 * 5 / 1023;
+  float tensionMoyenneSurA0 = (float)moyenneValeurA0 * 5.0 / 1023.0;
           // 5 correspond aux +5V de référence de l'ATmega328P (son alim), et 1023 à la résolution de lecture des entrées analogiques (10 bits)
   float tensionMesureeSurMontage = tensionMoyenneSurA0 * (valeurResistanceR3DansMontage + valeurResistanceR4DansMontage) / valeurResistanceR4DansMontage;
           // Nota : il s'agit en fait de la formule du pont diviseur de tension, mais inversée (pour trouver la valeur d'entrée, en fonction de la sortie)
 
+  // Pour débug, si nécessaire :
+  // Serial.print("tensionMoyenneSurA0 = "); Serial.print(tensionMoyenneSurA0); Serial.println(" volts");
+  // Serial.print("tensionMesureeSurMontage = "); Serial.print(tensionMesureeSurMontage); Serial.println(" volts");
   
   // ****************************************************************************
   // Affichage de la tension d'entrée calculée, sur l'écran compatible Nokia 5110
   // ****************************************************************************
-  // ... à venir
+  // Décomposition du nombre, deux chiffres avant et après la virgule (on multiplira par 100 et enlèvera ce qui est après la virgule, pour simplifier les choses)
+  byte quatreChiffresAafficher[4];
+  sprintf(quatreChiffresAafficher, "%04d", (int)(tensionMesureeSurMontage * 100));
+  
+  affichageChiffreAunePositionDonnee(1, quatreChiffresAafficher[0]-48);     // -48, parce que le caractère ASCII du chiffre 0 vaut "48" (donc il faut décaler d'autant ici)
+  affichageChiffreAunePositionDonnee(2, quatreChiffresAafficher[1]-48);
+  affichageChiffreAunePositionDonnee(3, quatreChiffresAafficher[2]-48);
+  affichageChiffreAunePositionDonnee(4, quatreChiffresAafficher[3]-48);
+  
 
+  // *********************************************************************************************************
   // Puis rebouclage, après une petite pause (pour ne pas faire varier l'affichage trop rapidement non plus !)
-  delay(1000);
+  // *********************************************************************************************************
+  delay(200);
   
 }
-
-
-
-
-// =============================
-// Fonction : testAffichageImage
-// =============================
-void testAffichageImage() {
-
-  // Position de cette image
-  byte Xpos = 0;    // Entre 0 et 83, sur l'axe horizontal
-  byte Ypos = 0;    // Entre 0 et 5, sur l'axe vertical (chaque position ici représentant 8 bits/pixels de haut)
-
-  // Commande de l'écran
-  digitalWrite(sortieD10_SS_ATmega328P_vers_brocheCE_ecranNokia, LOW);  // Activation de l'écran LCD (en mettant sa ligne CE à l'état bas)
-  envoiUneCommandeAuNokia5510(0b10000000 + Xpos);                       // Saut à la position horizontale "Xpos"
-  envoiUneCommandeAuNokia5510(0b01000000 + Ypos);                       // Saut à la position verticale "Ypos"
-
-  // Effaçage de l'écran (84 pixels de large, sur 6 paquets de 8 pixels de haut, ce qui donne 84x6=504 octets)
-  for(int i=0; i < 504; i++) {
-    envoiDesDonneesAuNokia5510(0x00);                                   // Mise à 0 préalable de tous les pixels de l'écran
-  }
-
-  // Nota : implicitement, on est revenu en X=0 et Y=0
-
-  // Test 1 : image "VDC" (faisant 15 pixels de large)
-  // for(byte j=0; j<15; j++) {
-  //   envoiDesDonneesAuNokia5510(pgm_read_byte_near(IMAGE_MENTION_VDC + j));    // Envoi de l'image sur l'écran LCD
-  // }
-  // Test 2 : image "bannière haute" (faisant 84 pixels de large, sur 2 octets de haut soit 16 pixels)
-  // for(byte j=0; j<84; j++) {
-  //   envoiDesDonneesAuNokia5510(pgm_read_byte_near(IMAGE_ENTETE + (2*j+1)));    // Envoi de l'image sur l'écran LCD
-  // }
-  // for(byte j=0; j<84; j++) {
-  //   envoiDesDonneesAuNokia5510(pgm_read_byte_near(IMAGE_ENTETE + (2*j)));    // Envoi de l'image sur l'écran LCD
-  // }
-  // Test 3 : image "chiffre xxx" (faisant 16 pixels de large, sur 3 octets de haut soit 24 pixels)
-  envoiUneCommandeAuNokia5510(0b10000000);      // X = 0
-  envoiUneCommandeAuNokia5510(0b01000000 + 0);  // Y = 0 (1er octet du haut)
-  for(byte j=0; j<16; j++) {
-    envoiDesDonneesAuNokia5510(pgm_read_byte_near(IMAGE_CHIFFRE_8 + (3*j+2)));    // Envoi de l'image sur l'écran LCD
-  }
-  envoiUneCommandeAuNokia5510(0b10000000);      // X = 0
-  envoiUneCommandeAuNokia5510(0b01000000 + 1);  // Y = 1 (2ème octet, donc 8 pixels plus bas)
-  for(byte j=0; j<16; j++) {
-    envoiDesDonneesAuNokia5510(pgm_read_byte_near(IMAGE_CHIFFRE_8 + (3*j+1)));    // Envoi de l'image sur l'écran LCD
-  }
-  envoiUneCommandeAuNokia5510(0b10000000);      // X = 0
-  envoiUneCommandeAuNokia5510(0b01000000 + 2);  // Y = 2 (3ème octet, donc 16 pixels plus bas)
-  for(byte j=0; j<16; j++) {
-    envoiDesDonneesAuNokia5510(pgm_read_byte_near(IMAGE_CHIFFRE_8 + (3*j+0)));    // Envoi de l'image sur l'écran LCD
-  }
-  
-
-  // Désélection de l'écran Nokia 5110 (fin du transfert de données)
-  digitalWrite(sortieD10_SS_ATmega328P_vers_brocheCE_ecranNokia, HIGH); // Par la mise au niveau haut de la ligne CE
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -243,11 +191,11 @@ void envoiDesDonneesAuNokia5510(byte donnees) { // Send data to display
 // ==============================
 // Permet de positionner le curseur à la position souhaité
 // (en sachant qu'on va de 1 en 1 sur l'axe X, et de 8 en 8 sur l'axe Y)
-void positionneLeCurseur(byte posX, byte posY) {
+void positionneLeCurseur(byte Xpos, byte Ypos) {
 
   // Avec
-  //   - posX : valeur entre 0 et 83, sur l'axe horizontal (on va de 1 en 1 pixel sur l'axe X)
-  //   - posY : valeur entre 0 et 5, sur l'axe vertical (on va de 8 en 8 pixels sur l'axe Y)
+  //   - Xpos : valeur entre 0 et 83, sur l'axe horizontal (on va de 1 en 1 pixel sur l'axe X)
+  //   - Ypos : valeur entre 0 et 5, sur l'axe vertical (on va de 8 en 8 pixels sur l'axe Y)
   //
   //               REMARQUE IMPORTANTE:
   //                   L'axe Y de l'écran fait 48 pixels de haut (ce qui occupe donc 48 bits d'espace mémoire, au sein de l'écran).
@@ -348,6 +296,97 @@ void affichageMentionVdcEnBas() {
   //   - 8 pixels de haut (envoyés 8 par 8, donc répartis sur 1 x 8 bits, d'où un seul envoi ci-dessous)
   for(byte offset=0; offset<15; offset++) {
     envoiDesDonneesAuNokia5510(pgm_read_byte_near(IMAGE_MENTION_VDC + offset));
+  }
+
+}
+
+// =============================================
+// Fonction : affichageChiffreAunePositionDonnee
+// =============================================
+void affichageChiffreAunePositionDonnee(byte position1a4, byte valeurAafficher) {
+
+  // Déclaration des variables de positionnement
+  byte colonneX;          // De 0 à 83, représentant nos 84 pixels de large, sur l'écran
+  byte ligneY;            // De 0 à 5, représentant nos 6 lignes de 8 pixels de haut, sur l'écran
+
+  // Détermination de la position sur l'axe horizontal (colonneX)
+  switch(position1a4) {
+    case 1:
+      colonneX = 5;       // Le 1er chiffre commence à 6ème colonne (index #5)
+      break;
+    case 2:
+      colonneX = 23;      // Le 2ème chiffre commence à 24ème colonne (index #23)
+      break;
+    case 3:
+      colonneX = 45;      // Le 2ème chiffre commence à 46ème colonne (index #45)
+      break;
+    case 4:
+      colonneX = 63;      // Le 2ème chiffre commence à 64ème colonne (index #63)
+      break;
+    default:
+      break;
+  }
+
+  // Détermination du chiffre à envoyer
+  byte* pointeurVersChiffreAenvoyer;
+  switch(valeurAafficher) {
+    case 0:
+      pointeurVersChiffreAenvoyer = IMAGE_CHIFFRE_0;
+      break;
+    case 1:
+      pointeurVersChiffreAenvoyer = IMAGE_CHIFFRE_1;
+      break;
+    case 2:
+      pointeurVersChiffreAenvoyer = IMAGE_CHIFFRE_2;
+      break;
+    case 3:
+      pointeurVersChiffreAenvoyer = IMAGE_CHIFFRE_3;
+      break;
+    case 4:
+      pointeurVersChiffreAenvoyer = IMAGE_CHIFFRE_4;
+      break;
+    case 5:
+      pointeurVersChiffreAenvoyer = IMAGE_CHIFFRE_5;
+      break;
+    case 6:
+      pointeurVersChiffreAenvoyer = IMAGE_CHIFFRE_6;
+      break;
+    case 7:
+      pointeurVersChiffreAenvoyer = IMAGE_CHIFFRE_7;
+      break;
+    case 8:
+      pointeurVersChiffreAenvoyer = IMAGE_CHIFFRE_8;
+      break;
+    case 9:
+      pointeurVersChiffreAenvoyer = IMAGE_CHIFFRE_9;
+      break;
+    default:
+      break;
+  }
+
+  // *******************************************************************************
+  // Nota : chaque chiffre fait 16 pixels de large, sur 3 octets de haut (24 pixels)
+  // *******************************************************************************
+
+  // Envoi du haut de l'image (les "3èmes octets" du chiffre), sur la ligne 2 de l'écran (sur l'axe vertical, j'entends)
+  ligneY = 2;
+  positionneLeCurseur(colonneX, ligneY);
+  for(byte offset=0; offset<16; offset++) {
+    envoiDesDonneesAuNokia5510(pgm_read_byte_near(pointeurVersChiffreAenvoyer + (3*offset+2)));
+  }
+  
+  // Envoi du milieu de l'image (les "2èmes octets" du chiffre), sur la ligne 3 de l'écran (sur l'axe vertical, j'entends)
+  ligneY = 3;
+  positionneLeCurseur(colonneX, ligneY);
+  for(byte offset=0; offset<16; offset++) {
+    envoiDesDonneesAuNokia5510(pgm_read_byte_near(pointeurVersChiffreAenvoyer + (3*offset+1)));
+  }
+
+  // Envoi du bas de l'image (les "1er octets" du chiffre), sur la ligne 4 de l'écran (sur l'axe vertical, j'entends)
+  ligneY = 4;
+  positionneLeCurseur(colonneX, ligneY);
+  for(byte offset=0; offset<16; offset++) {
+    envoiDesDonneesAuNokia5510(pgm_read_byte_near(pointeurVersChiffreAenvoyer + (3*offset+0)));
   }
 
 }
