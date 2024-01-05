@@ -93,8 +93,9 @@ void setup() {
   delay(500);
 
 
-  // Test affichage image, tout en haut à gauche de l'écran
-  testAffichageImage();
+  // Mise en place des "élements fixes, sur l'écran LCD"
+  effaceLecran();
+  affichageBanniereEnHaut();
 
 
 }
@@ -128,7 +129,7 @@ void loop() {
   // ****************************************************************************
   // Affichage de la tension d'entrée calculée, sur l'écran compatible Nokia 5110
   // ****************************************************************************
-  //afficheValeurTensionAvecOrnements(tensionMesureeSurMontage);
+  // ... à venir
 
   // Puis rebouclage, après une petite pause (pour ne pas faire varier l'affichage trop rapidement non plus !)
   delay(1000);
@@ -136,12 +137,6 @@ void loop() {
 }
 
 
-// ============================================
-// Fonction : afficheValeurTensionAvecOrnements
-// ============================================
-void afficheValeurTensionAvecOrnements(float tensionAafficher) {
-
-}
 
 
 // =============================
@@ -198,18 +193,112 @@ void testAffichageImage() {
   digitalWrite(sortieD10_SS_ATmega328P_vers_brocheCE_ecranNokia, HIGH); // Par la mise au niveau haut de la ligne CE
 }
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 // ======================================
 // Fonction : envoiUneCommandeAuNokia5510
 // ======================================
+// Permet d'envoyer un ordre (instruction) à l'afficheur LCD, pour qu'il l'exécute (par exemple : positionner curseur à tel ou tel endroit, régler contraste, ...)
 void envoiUneCommandeAuNokia5510(byte commande) {
+  digitalWrite(sortieD10_SS_ATmega328P_vers_brocheCE_ecranNokia, LOW);  // Activation de l'écran LCD (en mettant sa ligne CE à l'état bas)
   digitalWrite(sortieD6_ATmega328P_vers_brocheDC_ecranNokia, LOW);      // Passage en mode "commande" de l'écran LCD (ligne DC à 0)
   SPI.transfer(commande);                                               // Envoi des 8 bits de commande
+  digitalWrite(sortieD10_SS_ATmega328P_vers_brocheCE_ecranNokia, HIGH); // Désélection de l'écran Nokia 5110, en ramenant sa ligne /SS à l'état haut
 }
+
 
 // =====================================
 // Fonction : envoiDesDonneesAuNokia5510
 // =====================================
+// Permet d'envoyer des données à l'afficheur LCD (les pixels à afficher à l'écran, en fait)
 void envoiDesDonneesAuNokia5510(byte donnees) { // Send data to display
+  digitalWrite(sortieD10_SS_ATmega328P_vers_brocheCE_ecranNokia, LOW);  // Activation de l'écran LCD (en mettant sa ligne CE à l'état bas)
   digitalWrite(sortieD6_ATmega328P_vers_brocheDC_ecranNokia, HIGH);     // Passage en mode "données" de l'écran LCD (ligne DC à 1)
   SPI.transfer(donnees);                                                // Envoi des 8 bits de commande
+  digitalWrite(sortieD10_SS_ATmega328P_vers_brocheCE_ecranNokia, HIGH); // Désélection de l'écran Nokia 5110, en ramenant sa ligne /SS à l'état haut
+}
+
+
+// ==============================
+// Fonction : positionneLeCurseur
+// ==============================
+// Permet de positionner le curseur à la position souhaité
+// (en sachant qu'on va de 1 en 1 sur l'axe X, et de 8 en 8 sur l'axe Y)
+void positionneLeCurseur(byte posX, byte posY) {
+
+  // Avec
+  //   - posX : valeur entre 0 et 83, sur l'axe horizontal (on va de 1 en 1 pixel sur l'axe X)
+  //   - posY : valeur entre 0 et 5, sur l'axe vertical (on va de 8 en 8 pixels sur l'axe Y)
+  //
+  //               REMARQUE IMPORTANTE:
+  //                   L'axe Y de l'écran fait 48 pixels de haut (ce qui occupe donc 48 bits d'espace mémoire, au sein de l'écran).
+  //                   Par contre, l'écran Nokia 5110 gère sa mémoire sous forme "d'octets" et non de "bits", sur l'axe Y. Ainsi,
+  //                   ces 48 bits seront répartis sur 6 octets, ce qui nous donne bien 6x8 = 48 pixels. Cela explique pourquoi ici
+  //                   la position_Y va de 0 à 5 (octets) dans ce cas, et non de 0 à 47 (bits).
+    
+  envoiUneCommandeAuNokia5510(0b10000000 + Xpos);                       // Saut à la position horizontale "Xpos" (exprimée en "pixels", pour ainsi dire)
+  envoiUneCommandeAuNokia5510(0b01000000 + Ypos);                       // Saut à la position verticale "Ypos" (exprimée en "numéro de ligne de 8 pixels", en quelque sorte)
+
+}
+
+
+// =======================
+// Fonction : effaceLecran
+// =======================
+// Permet d'effacer tous les pixels de l'écran (indispensable au démarrage, car l'écran Nokia 5110 peut afficher des pixels "allumés" par ci, par là !)
+void effaceLecran() {
+
+  // On se place "en haut/à gauche" de l'écran
+  byte colonneX = 0;      // De 0 à 83, représentant nos 84 pixels de large, sur l'écran
+  byte ligneY = 0;        // De 0 à 5, représentant nos 6 lignes de 8 pixels de haut, sur l'écran
+  positionneLeCurseur(colonneX, ligneY);
+
+  // Puis on efface les 504 octets de mémoire de l'afficheur LCD
+  // Nota : l'écran faisant 84 pixels de large, sur 6 paquets de 8 pixels de haut, cela nous donne bien 84x6 soit 504 octets !
+  for(int i=0; i < 504; i++) {
+    envoiDesDonneesAuNokia5510(0x00);                                   // Mise à 0 préalable de tous les pixels de l'écran
+  }
+
+}
+
+
+// ==================================
+// Fonction : affichageBanniereEnHaut
+// ==================================
+void affichageBanniereEnHaut() {
+
+  // On se place "en haut/à gauche" de l'écran
+  byte colonneX = 0;      // De 0 à 83, représentant nos 84 pixels de large, sur l'écran
+  byte ligneY = 0;        // De 0 à 5, représentant nos 6 lignes de 8 pixels de haut, sur l'écran
+  positionneLeCurseur(colonneX, ligneY);
+
+  // *********************************
+  // Envoi de l'image "bannière haute"
+  // *********************************
+  // Nota : cette image fait :
+  //   - 84 pixels de large (envoyés 1 par 1)
+  //   - 16 pixels de haut (envoyés 8 par 8, donc répartis sur 2 x 8 bits, d'où les 2 envois séparés ci-dessous)
+  for(byte j=0; j<84; j++) {
+    envoiDesDonneesAuNokia5510(pgm_read_byte_near(IMAGE_ENTETE + (2*j+1)));     // 8 bits "supérieurs" de notre image, sur 84 pixels de large
+  }
+  for(byte j=0; j<84; j++) {
+    envoiDesDonneesAuNokia5510(pgm_read_byte_near(IMAGE_ENTETE + (2*j)));       // 8 bits "inférieurs" de notre image, sur 84 pixels de large
+  }
+
 }
