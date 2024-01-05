@@ -89,14 +89,17 @@ void setup() {
   envoiUneCommandeAuNokia5510(0b00001100);    // [Display control] => D=1, 0, E=0 (DE=10 signifie un fonctionnement en "Normal mode")
   digitalWrite(sortieD10_SS_ATmega328P_vers_brocheCE_ecranNokia, HIGH);   // Déselection de l'afficheur LCD
 
-  // Petite pause, avec d'attaquer la boucle LOOP
-  delay(500);
-
+  // Petite pause, avant de passer à la suite
+  delay(100);
 
   // Mise en place des "élements fixes, sur l'écran LCD"
   effaceLecran();
   affichageBanniereEnHaut();
+  affichagePointAuMilieu();
+  affichageMentionVdcEnBas();
 
+  // Nouvelle petite pause, avant de passer à la boucle LOOP
+  delay(100);
 
 }
 
@@ -294,11 +297,57 @@ void affichageBanniereEnHaut() {
   // Nota : cette image fait :
   //   - 84 pixels de large (envoyés 1 par 1)
   //   - 16 pixels de haut (envoyés 8 par 8, donc répartis sur 2 x 8 bits, d'où les 2 envois séparés ci-dessous)
-  for(byte j=0; j<84; j++) {
-    envoiDesDonneesAuNokia5510(pgm_read_byte_near(IMAGE_ENTETE + (2*j+1)));     // 8 bits "supérieurs" de notre image, sur 84 pixels de large
+  for(byte offset=0; offset<84; offset++) {
+    envoiDesDonneesAuNokia5510(pgm_read_byte_near(IMAGE_ENTETE + (2*offset+1)));     // 8 bits "supérieurs" de notre image, sur 84 pixels de large
   }
-  for(byte j=0; j<84; j++) {
-    envoiDesDonneesAuNokia5510(pgm_read_byte_near(IMAGE_ENTETE + (2*j)));       // 8 bits "inférieurs" de notre image, sur 84 pixels de large
+  for(byte offset=0; offset<84; offset++) {
+    envoiDesDonneesAuNokia5510(pgm_read_byte_near(IMAGE_ENTETE + (2*offset)));       // 8 bits "inférieurs" de notre image, sur 84 pixels de large
+  }
+
+}
+
+
+// =================================
+// Fonction : affichagePointAuMilieu
+// =================================
+void affichagePointAuMilieu() {
+
+  // On se positionne à l'écran
+  byte colonneX = 41;      // De 0 à 83, représentant nos 84 pixels de large, sur l'écran
+  byte ligneY = 4;        // De 0 à 5, représentant nos 6 lignes de 8 pixels de haut, sur l'écran
+  positionneLeCurseur(colonneX, ligneY);
+
+  // *******************************
+  // Envoi de l'image "point milieu"
+  // *******************************
+  // Nota : cette image fait :
+  //   - 2 pixels de large (envoyés 1 par 1)
+  //   - 8 pixels de haut (envoyés 8 par 8, donc répartis sur 1 x 8 bits, d'où un seul envoi ci-dessous)
+  for(byte offset=0; offset<2; offset++) {
+    envoiDesDonneesAuNokia5510(pgm_read_byte_near(IMAGE_POINT_SEPARATEUR + offset));
+  }
+
+}
+
+
+// ===================================
+// Fonction : affichageMentionVdcEnBas
+// ===================================
+void affichageMentionVdcEnBas() {
+
+  // On se positionne à l'écran
+  byte colonneX = 67;      // De 0 à 83, représentant nos 84 pixels de large, sur l'écran
+  byte ligneY = 5;        // De 0 à 5, représentant nos 6 lignes de 8 pixels de haut, sur l'écran
+  positionneLeCurseur(colonneX, ligneY);
+
+  // *******************************
+  // Envoi de l'image "mention Vdc"
+  // *******************************
+  // Nota : cette image fait :
+  //   - 15 pixels de large (envoyés 1 par 1)
+  //   - 8 pixels de haut (envoyés 8 par 8, donc répartis sur 1 x 8 bits, d'où un seul envoi ci-dessous)
+  for(byte offset=0; offset<15; offset++) {
+    envoiDesDonneesAuNokia5510(pgm_read_byte_near(IMAGE_MENTION_VDC + offset));
   }
 
 }

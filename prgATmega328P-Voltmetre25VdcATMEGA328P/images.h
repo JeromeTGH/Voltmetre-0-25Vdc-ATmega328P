@@ -204,8 +204,8 @@ const byte IMAGE_CHIFFRE_9[] PROGMEM = {
 };
 
 const byte IMAGE_POINT_SEPARATEUR[] PROGMEM = {
-  0b00110000, 0b00000000, 0b00000000,   // 1ère colonne de pixels de ce chiffre (octet du bas, du milieu, puis du haut => 3 x 8 bits = 24 pixels de haut)
-  0b00110000, 0b00000000, 0b00000000    // 2ème colonne de pixels de ce chiffre
+  0b00110000,                           // 1ère colonne de pixels de ce symbole (sur un octet, donc 8 pixels de haut)
+  0b00110000                            // 2ème colonne de pixels de ce symbole
 };
 
 
