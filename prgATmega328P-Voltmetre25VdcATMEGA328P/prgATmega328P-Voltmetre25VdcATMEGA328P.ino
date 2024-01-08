@@ -312,16 +312,16 @@ void affichageChiffreAunePositionDonnee(byte position1a4, byte valeurAafficher) 
   // Détermination de la position sur l'axe horizontal (colonneX)
   switch(position1a4) {
     case 1:
-      colonneX = 5;       // Le 1er chiffre commence à 6ème colonne (index #5)
+      colonneX = 5;       // Le 1er chiffre commence à la 6ème colonne (index #5)
       break;
     case 2:
-      colonneX = 23;      // Le 2ème chiffre commence à 24ème colonne (index #23)
+      colonneX = 23;      // Le 2ème chiffre commence à la 24ème colonne (index #23)
       break;
     case 3:
-      colonneX = 45;      // Le 2ème chiffre commence à 46ème colonne (index #45)
+      colonneX = 45;      // Le 2ème chiffre commence à la 46ème colonne (index #45)
       break;
     case 4:
-      colonneX = 63;      // Le 2ème chiffre commence à 64ème colonne (index #63)
+      colonneX = 63;      // Le 2ème chiffre commence à la 64ème colonne (index #63)
       break;
     default:
       break;
@@ -364,9 +364,9 @@ void affichageChiffreAunePositionDonnee(byte position1a4, byte valeurAafficher) 
       break;
   }
 
-  // *******************************************************************************
-  // Nota : chaque chiffre fait 16 pixels de large, sur 3 octets de haut (24 pixels)
-  // *******************************************************************************
+  // ****************************************************************************************************************************************
+  // Nota : chaque chiffre fait 16 pixels de large, sur 24 pixels de haut (soit 24 bits, soit 3 octets, d'où les 3 envois séparés ci-dessous)
+  // ****************************************************************************************************************************************
 
   // Envoi du haut de l'image (les "3èmes octets" du chiffre), sur la ligne 2 de l'écran (sur l'axe vertical, j'entends)
   ligneY = 2;
