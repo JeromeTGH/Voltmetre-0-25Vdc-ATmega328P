@@ -318,10 +318,10 @@ void affichageChiffreAunePositionDonnee(byte position1a4, byte valeurAafficher) 
       colonneX = 23;      // Le 2ème chiffre commence à la 24ème colonne (index #23)
       break;
     case 3:
-      colonneX = 45;      // Le 2ème chiffre commence à la 46ème colonne (index #45)
+      colonneX = 45;      // Le 3ème chiffre commence à la 46ème colonne (index #45)
       break;
     case 4:
-      colonneX = 63;      // Le 2ème chiffre commence à la 64ème colonne (index #63)
+      colonneX = 63;      // Le 4ème chiffre commence à la 64ème colonne (index #63)
       break;
     default:
       break;
